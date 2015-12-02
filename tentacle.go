@@ -8,12 +8,14 @@ import (
 )
 
 type Prey struct {
-	Id       string   `json:"id"`
-	URL      string   `json:"url"`
-	Priority int      `json:"priority"`
-	Errors   []string `json:"errors"`
-	Status   string   `json:"status"`
-	Time     int64    `json:"time"`
+	Id        string   `json:"id"`
+	URL       string   `json:"url"`
+	Priority  int      `json:"priority"`
+	Errors    []string `json:"errors"`
+	Status    string   `json:"status"`
+	Time      int64    `json:"time"`
+	Created   int64    `json:"created"`
+	Completed int64    `json:"completed"`
 }
 
 const (
@@ -57,11 +59,12 @@ func NewTentacle(name string, bandwidth int, retry int) *Tentacle {
 		ChannelDie:      make(chan int),
 		dead:            false,
 	}
+	log.Println("tentacle", t.Name, "is growing")
 	go func() {
 		for {
 			select {
 			case <-t.ChannelDie:
-				log.Println("time to exit")
+				log.Println("tentacle", t.Name, "is falling off")
 				t.dead = true
 				t.ChannelDie = nil
 				t.ChannelEntangle = nil
@@ -81,25 +84,34 @@ func NewTentacle(name string, bandwidth int, retry int) *Tentacle {
 				}
 			case newPrey := <-t.ChannelEntangle:
 				newPrey.Status = preyStatusWaiting
+				newPrey.Created = time.Now().UnixNano()
 				t.Prey[newPrey.Id] = newPrey
 				t.Queue = append(t.Queue, newPrey.Id)
+				log.Println("tentacle", t.Name, "incoming prey", newPrey.Id)
 			case processingResult := <-t.ChannelBurp:
 				t.UsedBandwidth--
+				processingResult.Prey.Time = processingResult.Time
 				if processingResult.Error != nil {
-					processingResult.Prey.Time = processingResult.Time
 					processingResult.Prey.Errors = append(processingResult.Prey.Errors, processingResult.Error.Error())
 					if len(processingResult.Prey.Errors) < t.Retry {
 						processingResult.Prey.Status = preyStatusRetry
 					} else {
-						processingResult.Prey.Status = preyStatusFail
+						t.markCompleteWithStatus(processingResult.Prey, preyStatusFail)
 					}
 				} else {
-					processingResult.Prey.Status = preyStatusDone
+					t.markCompleteWithStatus(processingResult.Prey, preyStatusDone)
 				}
 			}
 		}
 	}()
 	return t
+}
+
+func (t *Tentacle) markCompleteWithStatus(prey *Prey, status string) {
+	prey.Status = status
+	prey.Completed = time.Now().UnixNano()
+	log.Println("tentacle", t.Name, "done with", prey.Id, "with status", status)
+
 }
 
 func (t *Tentacle) nextPrey() *Prey {
@@ -126,14 +138,20 @@ func (t *Tentacle) Move() {
 	}
 }
 
+// kill some prey
 func (t *Tentacle) kill(prey *Prey) {
 	if !t.dead {
+		log.Println("tentacle", t.Name, "is about to kill", prey.Id, prey.URL)
 		start := time.Now()
 		resp, err := http.Get(prey.URL)
-		resp.Body.Close()
-		if resp.StatusCode != http.StatusOK {
-			err = errors.New("wrong response code " + resp.Status)
+
+		if err == nil {
+			resp.Body.Close()
+			if resp.StatusCode != http.StatusOK {
+				err = errors.New("wrong response code " + resp.Status)
+			}
 		}
+
 		if t.ChannelBurp != nil {
 			t.ChannelBurp <- &PreyProcessingResult{
 				Prey:  prey,

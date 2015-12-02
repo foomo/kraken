@@ -99,11 +99,8 @@ Hello I am KRAKEN - URLs are my prey:
 /tentacle/<name>
 
 	PUT / POST : create or overwrite a new tentacle with body {"bandwidth": <int>, "retry": <int>}
-
-
-/tentacle/<name>
-
 	GET        : get the status of an existing tentacle
+	DELETE     : get rid of the tentacle
 
 
 /tentacle/<name>/<preyId>
