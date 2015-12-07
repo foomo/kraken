@@ -13,14 +13,14 @@ Hello I am KRAKEN - URLs are my prey:
 /tentacle/<name>
 
 	PUT / POST : create or overwrite a new tentacle with body {"bandwidth": <int>, "retry": <int>}
+	PATCH      : patch the tentacle change it bandwidth and number of retries with body  {"bandwidth": <int>, "retry": <int>}
 	GET        : get the status of an existing tentacle
 	DELETE     : get rid of the tentacle
 
 
 /tentacle/<name>/<preyId>
 
-	PUT/POST   : let me catch some prey with body { "url" : <string>, "priority" : <int> }
-
+	PUT/POST   : let me catch some prey with body { "url" : <string>, "priority" : <int>, ["verb" : <string>, "body" : <string>] }
 
 
 # Building
@@ -28,4 +28,3 @@ Hello I am KRAKEN - URLs are my prey:
 ```bash
 GOOS=linux GOARCH=amd64 go build -o bin/kraken-linux kraken-server/kraken-server.go
 ````
-

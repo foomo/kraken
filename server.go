@@ -15,6 +15,8 @@ type TentacleDefinition struct {
 type PreyDefinition struct {
 	URL      string `json:"url"`
 	Priority int    `json:"priority"`
+	Method   string `json:"verb,omitempty"`
+	Body     []byte `json:"body,omitempty"`
 }
 
 type TentacleStatus struct {
@@ -45,11 +47,12 @@ func NewServer(k *Kraken) *Server {
 	return s
 }
 
-func (s *Server) jsonResponse(w http.ResponseWriter, response interface{}) {
+func (s *Server) jsonResponse(code int, w http.ResponseWriter, response interface{}) {
 	jsonBytes, err := json.MarshalIndent(response, "", "\t")
 	if err != nil {
 		panic(err)
 	}
+	w.WriteHeader(code)
 	w.Write(jsonBytes)
 }
 
@@ -77,6 +80,7 @@ func (s *Server) getTentacleStatus(name string) *TentacleStatus {
 
 func decodeBody(r *http.Request, data interface{}) {
 	jsonBytes, err := ioutil.ReadAll(r.Body)
+	//log.Println("::::::::::::::::::::::::", string(jsonBytes))
 	r.Body.Close()
 	if err != nil {
 		panic(err)
@@ -99,13 +103,14 @@ Hello I am KRAKEN - URLs are my prey:
 /tentacle/<name>
 
 	PUT / POST : create or overwrite a new tentacle with body {"bandwidth": <int>, "retry": <int>}
+	PATCH      : patch the tentacle change it bandwidth and number of retries with body  {"bandwidth": <int>, "retry": <int>}
 	GET        : get the status of an existing tentacle
 	DELETE     : get rid of the tentacle
 
 
 /tentacle/<name>/<preyId>
 
-	PUT/POST   : let me catch some prey with body { "url" : <string>, "priority" : <int> }
+	PUT/POST   : let me catch some prey with body { "url" : <string>, "priority" : <int>, ["verb" : <string>, "body" : <string>] }
 
 `
 )
@@ -117,28 +122,40 @@ func (s *Server) help(w http.ResponseWriter) {
 
 func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	p := r.URL.Path
+	//log.Println(r.Method, r.URL.Path)
 	switch p {
 	case "/status":
-		s.jsonResponse(w, s.getServerStatus())
+		s.jsonResponse(http.StatusOK, w, s.getServerStatus())
 		return
 	default:
 		if strings.HasPrefix(p, "/tentacle") {
 			parts := strings.Split(p[1:], "/")
 			if len(parts) == 2 {
 				switch r.Method {
+				case "PATCH":
+					tentacleDef := &TentacleDefinition{}
+					decodeBody(r, tentacleDef)
+					err := s.kraken.SqueezeTentacle(parts[1], tentacleDef.Bandwidth, tentacleDef.Retry)
+					if err != nil {
+						s.jsonResponse(http.StatusNotFound, w, "unknown tentacle")
+						return
+					}
+					s.jsonResponse(http.StatusOK, w, "tentacle was updated")
+					return
 				case "POST":
 				case "PUT":
 					tentacleDef := &TentacleDefinition{}
 					decodeBody(r, tentacleDef)
 					s.kraken.GrowTentacle(parts[1], tentacleDef.Bandwidth, tentacleDef.Retry)
-					s.jsonResponse(w, 1)
+					//log.Println("server tentacles", s.kraken.tentacles)
+					s.jsonResponse(http.StatusCreated, w, "created a tentacle")
 					return
 				case "DELETE":
 					s.kraken.CutOffTentacle(parts[1])
-					s.jsonResponse(w, 1)
+					s.jsonResponse(http.StatusOK, w, "tentacle deleted")
 					return
 				case "GET":
-					s.jsonResponse(w, s.getTentacleStatus(parts[1]))
+					s.jsonResponse(http.StatusOK, w, s.getTentacleStatus(parts[1]))
 					return
 				}
 			} else if len(parts) == 3 {
@@ -151,8 +168,10 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 						Id:       parts[2],
 						URL:      preyDefinition.URL,
 						Priority: preyDefinition.Priority,
+						Method:   preyDefinition.Method,
+						Body:     preyDefinition.Body,
 					}
-					s.jsonResponse(w, s.kraken.Catch(parts[1], prey))
+					s.jsonResponse(http.StatusOK, w, s.kraken.Catch(parts[1], prey))
 					return
 				}
 			}

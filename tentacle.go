@@ -1,6 +1,7 @@
 package kraken
 
 import (
+	"bytes"
 	"errors"
 	"log"
 	"net/http"
@@ -16,6 +17,8 @@ type Prey struct {
 	Time      int64    `json:"time"`
 	Created   int64    `json:"created"`
 	Completed int64    `json:"completed"`
+	Method    string   `json:"verb"`
+	Body      []byte   `json:"body"`
 }
 
 const (
@@ -111,7 +114,6 @@ func (t *Tentacle) markCompleteWithStatus(prey *Prey, status string) {
 	prey.Status = status
 	prey.Completed = time.Now().UnixNano()
 	log.Println("tentacle", t.Name, "done with", prey.Id, "with status", status)
-
 }
 
 func (t *Tentacle) nextPrey() *Prey {
@@ -132,6 +134,7 @@ func (t *Tentacle) Entangle(prey *Prey) {
 	}
 }
 
+// Move to kill
 func (t *Tentacle) Move() {
 	if !t.dead {
 		t.ChannelMove <- 1
@@ -143,15 +146,20 @@ func (t *Tentacle) kill(prey *Prey) {
 	if !t.dead {
 		log.Println("tentacle", t.Name, "is about to kill", prey.Id, prey.URL)
 		start := time.Now()
-		resp, err := http.Get(prey.URL)
-
+		method := prey.Method
+		if len(method) == 0 {
+			method = "GET"
+		}
+		req, err := http.NewRequest(method, prey.URL, bytes.NewReader([]byte(prey.Body)))
 		if err == nil {
-			resp.Body.Close()
-			if resp.StatusCode != http.StatusOK {
-				err = errors.New("wrong response code " + resp.Status)
+			resp, err := http.DefaultClient.Do(req)
+			if err == nil {
+				resp.Body.Close()
+				if resp.StatusCode != http.StatusOK {
+					err = errors.New("wrong response code " + resp.Status)
+				}
 			}
 		}
-
 		if t.ChannelBurp != nil {
 			t.ChannelBurp <- &PreyProcessingResult{
 				Prey:  prey,

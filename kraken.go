@@ -24,6 +24,17 @@ func NewKraken() *Kraken {
 	return k
 }
 
+func (k *Kraken) SqueezeTentacle(name string, bandwidth int, retry int) error {
+	tentacle, ok := k.tentacles[name]
+	if !ok {
+		return errors.New("tentacle not found")
+	}
+	tentacle.Bandwidth = bandwidth
+	tentacle.Retry = retry
+	return nil
+
+}
+
 func (k *Kraken) GrowTentacle(name string, bandwidth int, retry int) {
 	k.CutOffTentacle(name)
 	k.tentacles[name] = NewTentacle(name, bandwidth, retry)
