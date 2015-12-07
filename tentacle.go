@@ -8,6 +8,7 @@ import (
 	"time"
 )
 
+// Prey - this is what a kraken hunts
 type Prey struct {
 	Id        string   `json:"id"`
 	URL       string   `json:"url"`
@@ -19,6 +20,7 @@ type Prey struct {
 	Completed int64    `json:"completed"`
 	Method    string   `json:"verb"`
 	Body      []byte   `json:"body"`
+	Tags      []string `json:"tags"`
 }
 
 const (

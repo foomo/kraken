@@ -43,22 +43,31 @@ func (c *Client) CreateTentacle(name string, bandwidth int, retry int) error {
 	return c.tentacleAction("PUT", name, bandwidth, retry)
 }
 
+// DeleteTentacle - delete a tentacle
+func (c *Client) DeleteTentacle(name string) error {
+	_, err := c.Do("DELETE", "/tentacle/"+url.QueryEscape(name), nil)
+	return err
+}
+
 // PatchTentacle - create a tentacle
 func (c *Client) PatchTentacle(name string, bandwidth int, retry int) error {
 	return c.tentacleAction("PATCH", name, bandwidth, retry)
 }
 
-func (c *Client) AddPrey(tentacleName string, preyId string, urlString string, method string, body []byte) error {
+// AddPrey - add prey to a tentacle
+func (c *Client) AddPrey(tentacleName string, preyID string, urlString string, method string, body []byte, tags []string) error {
 	prey := &PreyDefinition{
 		Method:   method,
 		URL:      urlString,
 		Priority: 1,
 		Body:     body,
+		Tags:     tags,
 	}
-	_, err := c.Do("PUT", "/tentacle/"+url.QueryEscape(tentacleName)+"/"+url.QueryEscape(preyId), prey)
+	_, err := c.Do("PUT", "/tentacle/"+url.QueryEscape(tentacleName)+"/"+url.QueryEscape(preyID), prey)
 	return err
 }
 
+// GetTentacle - get a tentacle status
 func (c *Client) GetTentacle(tentacleName string) (tentacleStatus *TentacleStatus, err error) {
 	response, err := c.Do("GET", "/tentacle/"+url.QueryEscape(tentacleName), nil)
 	responseBytes, readErr := ioutil.ReadAll(response.Body)

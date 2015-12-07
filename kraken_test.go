@@ -47,6 +47,31 @@ func TestTentacleCreation(t *testing.T) {
 	}
 }
 
+func TestTentacleDeletion(t *testing.T) {
+	ks, ts := mockKraken()
+	defer ts.Close()
+	c := NewClient(ts.URL)
+	tentacleName := "sepp"
+	bandwidth := 3
+	retry := 3
+	err := c.CreateTentacle(tentacleName, bandwidth, retry)
+	panicOnErr(err)
+	tentacle, ok := ks.kraken.tentacles[tentacleName]
+	if ok != true {
+		t.Fatal("tentacle is missing")
+	}
+	err = c.DeleteTentacle(tentacleName)
+	panicOnErr(err)
+	tentacle, ok = ks.kraken.tentacles[tentacleName]
+	if ok {
+		t.Fatal("tentacle should be missing", tentacle)
+	}
+	err = c.DeleteTentacle(tentacleName)
+	if err != nil {
+		t.Fatal("deleting a non existent tentacle should result in an error")
+	}
+}
+
 func TestTentaclePatch(t *testing.T) {
 	ks, ts := mockKraken()
 	defer ts.Close()
@@ -69,7 +94,7 @@ func TestTentaclePatch(t *testing.T) {
 	}
 }
 
-func TestMethod(t *testing.T) {
+func TestPrey(t *testing.T) {
 	methods := []string{}
 	waitChan := make(chan bool)
 	ms := mockServer(func(w http.ResponseWriter, r *http.Request) {
@@ -92,7 +117,8 @@ func TestMethod(t *testing.T) {
 			log.Println("method did not hit the server")
 		}
 	}()
-	panicOnErr(c.AddPrey(tentacleName, preyID, ms.URL+"/foo", preyMethod, []byte{}))
+	tags := []string{"test"}
+	panicOnErr(c.AddPrey(tentacleName, preyID, ms.URL+"/foo", preyMethod, []byte{}, tags))
 	tentacleStatus, err := c.GetTentacle(tentacleName)
 	panicOnErr(err)
 	if tentacleStatus == nil {
@@ -107,6 +133,9 @@ func TestMethod(t *testing.T) {
 	}
 	if preyA.Method != preyMethod {
 		t.Fatal("that is not the method i was looking for")
+	}
+	if preyA.Tags[0] != tags[0] {
+		t.Fatal("tag mismatch")
 	}
 }
 
@@ -134,7 +163,7 @@ func TestBody(t *testing.T) {
 			t.Fatal("body fail")
 		}
 	}()
-	panicOnErr(c.AddPrey(tentacleName, preyID, ms.URL+"/foo", preyMethod, []byte(testBody)))
+	panicOnErr(c.AddPrey(tentacleName, preyID, ms.URL+"/foo", preyMethod, []byte(testBody), []string{}))
 	tentacleStatus, err := c.GetTentacle(tentacleName)
 	panicOnErr(err)
 	if tentacleStatus == nil {
