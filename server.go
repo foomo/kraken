@@ -15,7 +15,7 @@ type TentacleDefinition struct {
 type PreyDefinition struct {
 	URL      string   `json:"url"`
 	Priority int      `json:"priority"`
-	Method   string   `json:"verb,omitempty"`
+	Method   string   `json:"method,omitempty"`
 	Body     []byte   `json:"body,omitempty"`
 	Tags     []string `json:"tags,omitempty"`
 }
@@ -112,7 +112,7 @@ Hello I am KRAKEN - URLs are my prey:
 
 /tentacle/<name>/<preyId>
 
-	PUT/POST   : let me catch some prey with body { "url" : <string>, "priority" : <int>, ["verb" : <string>, "body" : <string>] }
+	PUT/POST   : let me catch some prey with body { "url" : <string>, "priority" : <int>, ["method" : <string>, "body" : <string>, "tags" : [<string>, ...] }
 
 `
 )

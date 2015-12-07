@@ -5,6 +5,8 @@ Kraken helps you to fetch a lot of URLs.
 
 Hello I am KRAKEN - URLs are my prey:
 
+```
+
 /status
 
 	GET: get the status of this kraken
@@ -20,11 +22,6 @@ Hello I am KRAKEN - URLs are my prey:
 
 /tentacle/<name>/<preyId>
 
-	PUT/POST   : let me catch some prey with body { "url" : <string>, "priority" : <int>, ["verb" : <string>, "body" : <string>] }
+	PUT/POST   : let me catch some prey with body { "url" : <string>, "priority" : <int>, ["method" : <string>, "body" : <string>, "tags" : [<string>, ...] }
 
-
-# Building
-
-```bash
-GOOS=linux GOARCH=amd64 go build -o bin/kraken-linux kraken-server/kraken-server.go
-````
+```

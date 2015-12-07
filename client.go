@@ -84,6 +84,22 @@ func (c *Client) GetTentacle(tentacleName string) (tentacleStatus *TentacleStatu
 	return tentacleStatus, err
 }
 
+func (c *Client) GetServerStatus() (serverStatus *ServerStatus, err error) {
+	response, err := c.Do("GET", "/status", nil)
+	if err != nil {
+		return nil, err
+	}
+	serverStatus = &ServerStatus{}
+	responseBytes, err := ioutil.ReadAll(response.Body)
+	if err != nil {
+		return nil, err
+	} else {
+		response.Body.Close()
+	}
+	err = json.Unmarshal(responseBytes, &serverStatus)
+	return serverStatus, err
+}
+
 func (c *Client) tentacleAction(action string, name string, bandwidth int, retry int) error {
 	_, err := c.Do(action, "/tentacle/"+url.QueryEscape(name), &TentacleDefinition{
 		Bandwidth: bandwidth,

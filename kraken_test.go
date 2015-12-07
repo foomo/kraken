@@ -94,6 +94,14 @@ func TestTentaclePatch(t *testing.T) {
 	}
 }
 
+func createTentacle(tentacleName string, ts *httptest.Server) *Client {
+	c := NewClient(ts.URL)
+	bandwidth := 3
+	retry := 3
+	panicOnErr(c.CreateTentacle(tentacleName, bandwidth, retry))
+	return c
+}
+
 func TestPrey(t *testing.T) {
 	methods := []string{}
 	waitChan := make(chan bool)
@@ -104,11 +112,8 @@ func TestPrey(t *testing.T) {
 	defer ms.Close()
 	ks, ts := mockKraken()
 	defer ts.Close()
-	c := NewClient(ts.URL)
 	tentacleName := "sepp"
-	bandwidth := 3
-	retry := 3
-	panicOnErr(c.CreateTentacle(tentacleName, bandwidth, retry))
+	c := createTentacle(tentacleName, ts)
 	preyID := "a"
 	preyMethod := "TEST"
 	go func() {
@@ -140,21 +145,16 @@ func TestPrey(t *testing.T) {
 }
 
 func TestBody(t *testing.T) {
-	methods := []string{}
 	bodyChan := make(chan string)
 	ms := mockServer(func(w http.ResponseWriter, r *http.Request) {
-		methods = append(methods, r.Method)
 		body, _ := ioutil.ReadAll(r.Body)
 		bodyChan <- string(body)
 	})
 	defer ms.Close()
 	ks, ts := mockKraken()
 	defer ts.Close()
-	c := NewClient(ts.URL)
 	tentacleName := "sepp"
-	bandwidth := 3
-	retry := 3
-	panicOnErr(c.CreateTentacle(tentacleName, bandwidth, retry))
+	c := createTentacle(tentacleName, ts)
 	preyID := "a"
 	preyMethod := "TEST"
 	testBody := "a test body"
@@ -178,6 +178,39 @@ func TestBody(t *testing.T) {
 	}
 	if string(preyA.Body) != testBody {
 		t.Fatal("body missmatch", testBody, preyA.Body)
+	}
+
+}
+
+func TestGetServerStatus(t *testing.T) {
+	bodyChan := make(chan string)
+	ms := mockServer(func(w http.ResponseWriter, r *http.Request) {
+		body, _ := ioutil.ReadAll(r.Body)
+		bodyChan <- string(body)
+	})
+	defer ms.Close()
+	_, ts := mockKraken()
+	defer ts.Close()
+	tentacleName := "sepp"
+	c := createTentacle(tentacleName, ts)
+	preyID := "a"
+	preyMethod := "TEST"
+	testBody := "a test body"
+	go func() {
+		if testBody != <-bodyChan {
+			t.Fatal("body fail")
+		}
+	}()
+	panicOnErr(c.AddPrey(tentacleName, preyID, ms.URL+"/foo", preyMethod, []byte(testBody), []string{}))
+	serverStatus, err := c.GetServerStatus()
+	panicOnErr(err)
+	tentacleStatus, ok := serverStatus.Tentacles[tentacleName]
+	if !ok {
+		t.Fatal("missing tentacle in status")
+	}
+	_, ok = tentacleStatus.Prey[preyID]
+	if !ok {
+		t.Fatal("missing test prey in server status")
 	}
 
 }

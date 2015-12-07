@@ -18,7 +18,7 @@ type Prey struct {
 	Time      int64    `json:"time"`
 	Created   int64    `json:"created"`
 	Completed int64    `json:"completed"`
-	Method    string   `json:"verb"`
+	Method    string   `json:"method"`
 	Body      []byte   `json:"body"`
 	Tags      []string `json:"tags"`
 }

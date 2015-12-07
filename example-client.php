@@ -54,15 +54,21 @@ class Kraken
 			$this->deleteTentacle($tentacleStatus->name);
 		}
 	}
-	public function addPrey($tentacle, $id, $url, $priority)
+	public function addPrey($tentacle, $id, $url, $priority, $body = null, $method = 'GET', array $tags = [])
 	{
+		$callData = [
+			'url'      => $url,
+			'priority' => $priority,
+			'method'   => $method,
+			'tags'     => $tags
+		];
+		if(!is_null($body)) {
+			$callData['body'] = $body;
+		}
 		return $this->callServer(
 			'PUT',
 			'/tentacle/' . urlencode($tentacle) . '/' . urlencode($id),
-			[
-				'url' => $url,
-				'priority' => $priority
-			]
+			$callData
 		);
 	}
 
