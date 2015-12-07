@@ -37,14 +37,14 @@ start kraken
 ./kraken-linux -address "127.0.0.1:8080" -insecure
 ```
 
-delete tentacle
-```bash
-curl -k -X DELETE 127.0.0.1:8080/tentacle/foo
-```
-
 create tentacle
 ```bash
 curl -k -H "Content-Type: application/json" -X PUT -d '{"retry":3, "bandwidth":2}' 127.0.0.1:8080/tentacle/foo
+```
+
+add a prey
+```bash
+curl -k -H "Content-Type: application/json" -X PUT -d '{ "url" : "https://www.google.com", "priority" : 100}' 127.0.0.1:8080/tentacle/foo/prey1
 ```
 
 get status of a tentacle
@@ -52,7 +52,7 @@ get status of a tentacle
 curl -k 127.0.0.1:8080/tentacle/foo
 ```
 
-add a prey
+delete tentacle
 ```bash
-curl -k -H "Content-Type: application/json" -X PUT -d '{ "url" : "https://www.google.com", "priority" : 100}' 127.0.0.1:8080/tentacle/foo/prey1
+curl -k -X DELETE 127.0.0.1:8080/tentacle/foo
 ```
