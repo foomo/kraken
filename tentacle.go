@@ -5,36 +5,40 @@ import (
 	"errors"
 	"log"
 	"net/http"
+	"strconv"
 	"time"
 )
 
 // Prey - this is what a kraken hunts
 type Prey struct {
-	Id        string   `json:"id"`
-	URL       string   `json:"url"`
-	Priority  int      `json:"priority"`
-	Errors    []string `json:"errors"`
-	Status    string   `json:"status"`
-	Time      int64    `json:"time"`
-	Created   int64    `json:"created"`
-	Completed int64    `json:"completed"`
-	Method    string   `json:"method"`
-	Body      []byte   `json:"body"`
-	Tags      []string `json:"tags"`
+	Id         string   `json:"id"`
+	URL        string   `json:"url"`
+	Priority   int      `json:"priority"`
+	Errors     []string `json:"errors"`
+	Status     string   `json:"status"`
+	Time       int64    `json:"time"`
+	Created    int64    `json:"created"`
+	Completed  int64    `json:"completed"`
+	Method     string   `json:"method"`
+	Body       []byte   `json:"body"`
+	Tags       []string `json:"tags"`
+	RetryAfter int64    `json:"retryAfter"`
 }
 
 const (
 	preyStatusWaiting    = "waiting"
 	preyStatusProcessing = "processing"
 	preyStatusRetry      = "retry"
+	preyStatusRetryAfter = "retryAfter"
 	preyStatusFail       = "failed"
 	preyStatusDone       = "done"
 )
 
 type PreyProcessingResult struct {
-	Prey  *Prey
-	Error error
-	Time  int64
+	Prey       *Prey
+	Error      error
+	Time       int64
+	RetryAfter int64
 }
 
 type Tentacle struct {
@@ -97,13 +101,23 @@ func NewTentacle(name string, bandwidth int, retry int) *Tentacle {
 				t.UsedBandwidth--
 				processingResult.Prey.Time = processingResult.Time
 				if processingResult.Error != nil {
+					// call prey failed with an error
 					processingResult.Prey.Errors = append(processingResult.Prey.Errors, processingResult.Error.Error())
 					if len(processingResult.Prey.Errors) < t.Retry {
-						processingResult.Prey.Status = preyStatusRetry
+						if processingResult.RetryAfter == 0 {
+							// retry immediately
+							processingResult.Prey.Status = preyStatusRetry
+						} else {
+							// retry after timeout
+							processingResult.Prey.RetryAfter = processingResult.RetryAfter
+							processingResult.Prey.Status = preyStatusRetryAfter
+						}
 					} else {
+						// call prey failed
 						t.markCompleteWithStatus(processingResult.Prey, preyStatusFail)
 					}
 				} else {
+					// call prey succeeded
 					t.markCompleteWithStatus(processingResult.Prey, preyStatusDone)
 				}
 			}
@@ -119,9 +133,10 @@ func (t *Tentacle) markCompleteWithStatus(prey *Prey, status string) {
 }
 
 func (t *Tentacle) nextPrey() *Prey {
+	now := time.Now().UnixNano()
 	for _, id := range t.Queue {
 		p, _ := t.Prey[id]
-		if p.Status == preyStatusRetry || p.Status == preyStatusWaiting {
+		if p.Status == preyStatusRetry || p.Status == preyStatusWaiting || (p.Status == preyStatusRetryAfter && p.RetryAfter < now) {
 			return p
 		}
 	}
@@ -146,6 +161,7 @@ func (t *Tentacle) Move() {
 // kill some prey
 func (t *Tentacle) kill(prey *Prey) {
 	if !t.dead {
+		retryAfter := int64(0)
 		log.Println("tentacle", t.Name, "is about to kill", prey.Id, prey.URL)
 		start := time.Now()
 		method := prey.Method
@@ -154,19 +170,41 @@ func (t *Tentacle) kill(prey *Prey) {
 		}
 		req, err := http.NewRequest(method, prey.URL, bytes.NewReader([]byte(prey.Body)))
 		if err == nil {
-			resp, err := http.DefaultClient.Do(req)
-			if err == nil {
+			resp, clientError := http.DefaultClient.Do(req)
+			setWrongResponseErr := func() {
+				err = errors.New("wrong response code " + resp.Status)
+			}
+			if clientError == nil {
 				resp.Body.Close()
-				if resp.StatusCode != http.StatusOK {
-					err = errors.New("wrong response code " + resp.Status)
+				// check status codes
+				switch resp.StatusCode {
+				case http.StatusServiceUnavailable:
+					// service unavailable, check for retry-after header
+					retryAfterHeader := resp.Header.Get("Retry-After")
+					if len(retryAfterHeader) > 0 {
+						retryAfterSec, strconvError := strconv.Atoi(retryAfterHeader)
+						if strconvError != nil {
+							err = errors.New("invalid retry-after header " + retryAfterHeader)
+						} else {
+							retryAfter = time.Now().UnixNano() + int64(retryAfterSec)*1000000000
+							err = errors.New("prey requires retry after: " + retryAfterHeader)
+						}
+					} else {
+						setWrongResponseErr()
+					}
+				case http.StatusOK:
+					err = nil
+				default:
+					setWrongResponseErr()
 				}
 			}
 		}
 		if t.ChannelBurp != nil {
 			t.ChannelBurp <- &PreyProcessingResult{
-				Prey:  prey,
-				Error: err,
-				Time:  time.Now().UnixNano() - start.UnixNano(),
+				Prey:       prey,
+				Error:      err,
+				Time:       time.Now().UnixNano() - start.UnixNano(),
+				RetryAfter: retryAfter,
 			}
 		}
 	}
