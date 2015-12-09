@@ -18,6 +18,7 @@ type PreyDefinition struct {
 	Method   string   `json:"method,omitempty"`
 	Body     []byte   `json:"body,omitempty"`
 	Tags     []string `json:"tags,omitempty"`
+	Lock     string   `json:"lock,omitempty"`
 }
 
 // TentacleStatus - status of a tentacle
@@ -25,6 +26,7 @@ type TentacleStatus struct {
 	Name      string           `json:"name"`
 	Retry     int              `json:"retry"`
 	Bandwidth int              `json:"bandwidth"`
+	Locks     map[string]int64 `json:"locks"`
 	Prey      map[string]*Prey `json:"prey"`
 }
 
@@ -74,6 +76,7 @@ func (s *Server) getTentacleStatus(name string) *TentacleStatus {
 			Name:      name,
 			Retry:     tentacle.Retry,
 			Prey:      tentacle.Prey,
+			Locks:     tentacle.Locks,
 			Bandwidth: tentacle.Bandwidth,
 		}
 	} else {
@@ -173,6 +176,7 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 						Method:   preyDefinition.Method,
 						Body:     preyDefinition.Body,
 						Tags:     preyDefinition.Tags,
+						Lock:     preyDefinition.Lock,
 					}
 					s.jsonResponse(http.StatusOK, w, s.kraken.Catch(parts[1], prey))
 					return

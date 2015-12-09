@@ -23,6 +23,7 @@ type Prey struct {
 	Body       []byte   `json:"body"`
 	Tags       []string `json:"tags"`
 	RetryAfter int64    `json:"retryAfter"`
+	Lock       string   `json:"lock,omitempty"`
 }
 
 const (
@@ -41,34 +42,61 @@ type PreyProcessingResult struct {
 	RetryAfter int64
 }
 
+type getLock struct {
+	lock         string
+	chanCallback chan bool
+}
+
 type Tentacle struct {
-	Name            string
-	Prey            map[string]*Prey
-	Bandwidth       int
-	UsedBandwidth   int
-	Retry           int
-	Queue           []string
-	ChannelEntangle chan *Prey
-	ChannelBurp     chan *PreyProcessingResult
-	ChannelMove     chan int
-	ChannelDie      chan int
-	dead            bool
+	Name               string
+	Prey               map[string]*Prey
+	Bandwidth          int
+	UsedBandwidth      int
+	Retry              int
+	Queue              []string
+	Locks              map[string]int64
+	ChannelEntangle    chan *Prey
+	ChannelBurp        chan *PreyProcessingResult
+	ChannelMove        chan int
+	ChannelDie         chan int
+	dead               bool
+	channelLockGet     chan *getLock
+	channelLockRelease chan string
 }
 
 func NewTentacle(name string, bandwidth int, retry int) *Tentacle {
 	t := &Tentacle{
-		Name:            name,
-		Bandwidth:       bandwidth,
-		Retry:           retry,
-		UsedBandwidth:   0,
-		Prey:            make(map[string]*Prey),
-		ChannelEntangle: make(chan *Prey),
-		ChannelBurp:     make(chan *PreyProcessingResult),
-		ChannelMove:     make(chan int),
-		ChannelDie:      make(chan int),
-		dead:            false,
+		Name:               name,
+		Bandwidth:          bandwidth,
+		Retry:              retry,
+		UsedBandwidth:      0,
+		Prey:               make(map[string]*Prey),
+		ChannelEntangle:    make(chan *Prey),
+		ChannelBurp:        make(chan *PreyProcessingResult),
+		ChannelMove:        make(chan int),
+		ChannelDie:         make(chan int),
+		dead:               false,
+		channelLockRelease: make(chan string),
+		channelLockGet:     make(chan *getLock),
+		Locks:              make(map[string]int64),
 	}
 	log.Println("tentacle", t.Name, "is growing")
+	go func() {
+		for {
+			select {
+			case getLock := <-t.channelLockGet:
+				_, ok := t.Locks[getLock.lock]
+				if ok {
+					getLock.chanCallback <- false
+				} else {
+					t.Locks[getLock.lock] = time.Now().UnixNano()
+					getLock.chanCallback <- true
+				}
+			case release := <-t.channelLockRelease:
+				delete(t.Locks, release)
+			}
+		}
+	}()
 	go func() {
 		for {
 			select {
@@ -98,6 +126,9 @@ func NewTentacle(name string, bandwidth int, retry int) *Tentacle {
 				t.Queue = append(t.Queue, newPrey.Id)
 				log.Println("tentacle", t.Name, "incoming prey", newPrey.Id)
 			case processingResult := <-t.ChannelBurp:
+				if len(processingResult.Prey.Lock) > 0 {
+					t.channelLockRelease <- processingResult.Prey.Lock
+				}
 				t.UsedBandwidth--
 				processingResult.Prey.Time = processingResult.Time
 				if processingResult.Error != nil {
@@ -137,7 +168,19 @@ func (t *Tentacle) nextPrey() *Prey {
 	for _, id := range t.Queue {
 		p, _ := t.Prey[id]
 		if p.Status == preyStatusRetry || p.Status == preyStatusWaiting || (p.Status == preyStatusRetryAfter && p.RetryAfter < now) {
-			return p
+			if len(p.Lock) > 0 {
+				// that prey wants locking
+				chanCallback := make(chan bool)
+				t.channelLockGet <- &getLock{
+					lock:         p.Lock,
+					chanCallback: chanCallback,
+				}
+				if <-chanCallback {
+					return p
+				}
+			} else {
+				return p
+			}
 		}
 	}
 	return nil
