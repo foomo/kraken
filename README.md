@@ -22,11 +22,11 @@ Hello I am KRAKEN - URLs are my prey:
 
 /tentacle/<name>/<preyId>
 
-	PUT/POST   : let me catch some prey with body { "url" : <string>, "priority" : <int>, ["lock" : <string>, "method" : <string>, "body" : <string>, "tags" : [<string>, ...]] }
+	PUT/POST   : let me catch some prey with body { "url" : <string>, "priority" : <int>, ["locks" : [<string>, ...], "method" : <string>, "body" : <string>, "tags" : [<string>, ...]] }
 
 ```
 
-With "lock" you can define a resource name. Kraken will try to lock this resource before running a prey. This helps you to prevent running preys with the same resource in parallel.
+With "locks" you can define resource names. Kraken will try to lock these resources before running a prey. This helps you to prevent running preys with the same resource(s) in parallel.
 
 curl
 ----
