@@ -21,21 +21,23 @@ type PreyDefinition struct {
 	Locks    []string `json:"locks,omitempty"`
 }
 
-// TentacleStatus - status of a tentacle
-type TentacleStatus struct {
-	Name      string           `json:"name"`
-	Retry     int              `json:"retry"`
-	Bandwidth int              `json:"bandwidth"`
-	Locks     map[string]int64 `json:"locks"`
-	Prey      map[string]*Prey `json:"prey"`
-}
-
 // ServerStatus - status of the whole server
 type ServerStatus struct {
 	Tentacles map[string]*TentacleStatus `json:"tentacles"`
 }
 
-func NewServerStatus() *ServerStatus {
+type ServerStatistics struct {
+	Tentacles map[string]*TentacleStatistics `json:"tentacles"`
+}
+
+func newServerStatistics() *ServerStatistics {
+	s := &ServerStatistics{
+		Tentacles: make(map[string]*TentacleStatistics),
+	}
+	return s
+}
+
+func newServerStatus() *ServerStatus {
 	s := &ServerStatus{
 		Tentacles: make(map[string]*TentacleStatus),
 	}
@@ -62,26 +64,35 @@ func (s *Server) jsonResponse(code int, w http.ResponseWriter, response interfac
 }
 
 func (s *Server) getServerStatus() *ServerStatus {
-	status := NewServerStatus()
-	for name, _ := range s.kraken.tentacles {
+	status := newServerStatus()
+	for name := range s.kraken.tentacles {
 		status.Tentacles[name] = s.getTentacleStatus(name)
 	}
 	return status
 }
 
+func (s *Server) getServerStatistics() *ServerStatistics {
+	stats := newServerStatistics()
+	for name := range s.kraken.tentacles {
+		stats.Tentacles[name] = s.getTentacleStatistics(name)
+	}
+	return stats
+}
+
 func (s *Server) getTentacleStatus(name string) *TentacleStatus {
 	tentacle, ok := s.kraken.tentacles[name]
 	if ok {
-		return &TentacleStatus{
-			Name:      name,
-			Retry:     tentacle.Retry,
-			Prey:      tentacle.Prey,
-			Locks:     tentacle.Locks,
-			Bandwidth: tentacle.Bandwidth,
-		}
-	} else {
-		return nil
+		return tentacle.getStatus()
 	}
+	return nil
+}
+
+func (s *Server) getTentacleStatistics(name string) *TentacleStatistics {
+	tentacle, ok := s.kraken.tentacles[name]
+	if ok {
+		return tentacle.GetStatistics()
+	}
+	return nil
 }
 
 func decodeBody(r *http.Request, data interface{}) {
@@ -104,6 +115,13 @@ Hello I am KRAKEN - URLs are my prey:
 
 	GET: get the status of this kraken
 
+/statistics
+
+	GET: get the statistics of this kraken
+
+/statistics/<name>
+
+	GET: get the statistics of the given tentacle
 
 /tentacle/<name>
 
@@ -132,9 +150,22 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	case "/status":
 		s.jsonResponse(http.StatusOK, w, s.getServerStatus())
 		return
+	case "/statistics":
+		s.jsonResponse(http.StatusOK, w, s.getServerStatistics())
+		return
 	default:
-		if strings.HasPrefix(p, "/tentacle") {
-			parts := strings.Split(p[1:], "/")
+		if len(p) == 0 {
+			s.help(w)
+			return
+		}
+		parts := strings.Split(p[1:], "/")
+		if strings.HasPrefix(p, "/statistics") {
+			if len(parts) == 2 {
+				s.jsonResponse(http.StatusOK, w, s.getTentacleStatistics(parts[1]))
+				return
+			}
+		} else if strings.HasPrefix(p, "/tentacle") {
+
 			if len(parts) == 2 {
 				switch r.Method {
 				case "PATCH":
