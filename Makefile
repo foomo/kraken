@@ -1,10 +1,8 @@
 SHELL := /bin/bash
 
 clean:
-	rm -f bin/kraken-linux
-	rm -f bin/kraken-darwin
+	rm -vf bin/kraken
 build:
-	GOOS=linux GOARCH=amd64 go build -o bin/kraken-linux kraken-server/kraken-server.go
-	GOOS=darwin GOARCH=amd64 go build -o bin/kraken-darwin kraken-server/kraken-server.go
+	go build -o bin/kraken kraken-server/kraken-server.go
 test:
 	go test -v github.com/foomo/kraken
