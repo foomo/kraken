@@ -17,7 +17,7 @@ import (
 	"github.com/foomo/kraken"
 )
 
-const version = "0.4"
+const version = "0.4.0"
 
 var flagVersion = flag.Bool("version", false, "display version")
 var flagAddress = flag.String("address", "127.0.0.1:8888", "where to listen too like 127.0.0.1:8888")
