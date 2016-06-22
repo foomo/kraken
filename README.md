@@ -36,7 +36,7 @@ Some curl examples for locale development. Please consider NOT to run kraken in 
 start kraken
 
 ```bash
-./kraken-linux -address "127.0.0.1:8080" -insecure
+./kraken-linux -address "127.0.0.1:8080" -insecure -config "/etc/kraken/config.yaml"
 ```
 
 create tentacle
