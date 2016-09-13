@@ -36,7 +36,7 @@ Some curl examples for locale development. Please consider NOT to run kraken in 
 start kraken
 
 ```bash
-./kraken-linux -address "127.0.0.1:8080" -insecure -config "/etc/kraken/config.yaml"
+./kraken-linux -address "127.0.0.1:8080" -insecure -config "example-config.yaml"
 ```
 
 create tentacle
@@ -61,4 +61,12 @@ delete tentacle
 
 ```bash
 curl -k -X DELETE 127.0.0.1:8080/tentacle/foo
+```
+
+
+docker
+----
+
+```bash
+docker run --rm -it -v $PWD/example-config.yaml:/etc/kraken/config.yaml -p="8765:80" docker-registry.bestbytes.net/kraken:latest
 ```

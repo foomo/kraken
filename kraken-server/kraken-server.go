@@ -17,7 +17,7 @@ import (
 	"github.com/foomo/kraken"
 )
 
-const version = "0.4.0"
+const version = "0.4.1"
 
 var flagVersion = flag.Bool("version", false, "display version")
 var flagAddress = flag.String("address", "127.0.0.1:8888", "where to listen too like 127.0.0.1:8888")
@@ -67,8 +67,7 @@ func main() {
 		os.Exit(1)
 	}
 
-	fmt.Println("config", config)
-	fmt.Println("I AM KRAKEN at :", *flagAddress)
+	fmt.Print("I AM KRAKEN " + version + " at: " + config.Address + "\n")
 
 	if *flagInsecure {
 		fmt.Println("!!! not verifying peers !!!")
@@ -82,5 +81,5 @@ func main() {
 	for name, tentacle := range config.Tentacles {
 		k.GrowTentacle(name, tentacle.Bandwidth, tentacle.Retry)
 	}
-	kraken.NewServer(k).ListenAndServe(*flagAddress)
+	kraken.NewServer(k).ListenAndServe(config.Address)
 }
