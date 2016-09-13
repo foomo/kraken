@@ -7,13 +7,13 @@ import (
 	"flag"
 	"fmt"
 	"io/ioutil"
+	"log"
 	"net/http"
 	"os"
 	"strings"
 
-	"gopkg.in/yaml.v1"
+	yaml "gopkg.in/yaml.v2"
 
-	"github.com/foomo/flysprayd/log"
 	"github.com/foomo/kraken"
 )
 
@@ -63,7 +63,7 @@ func main() {
 	fmt.Println("reading config file:", *flagConfig)
 	config, err := readConfig(*flagConfig)
 	if err != nil {
-		log.Error("unable to read config file")
+		log.Println("unable to read config file")
 		os.Exit(1)
 	}
 

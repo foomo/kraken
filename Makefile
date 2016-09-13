@@ -13,9 +13,9 @@ build-arch: clean
 	GOOS=darwin GOARCH=amd64 go build -o bin/kraken-darwin-amd64 kraken-server/kraken-server.go
 build-docker: clean build-arch
 	curl -o docker/files/cacert.pem https://curl.haxx.se/ca/cacert.pem
-	docker build -q -t docker-registry.bestbytes.net/kraken:$(TAG) . > .image_id
-	docker tag `cat .image_id` docker-registry.bestbytes.net/kraken:latest
-	echo "# tagged container `cat .image_id` as docker-registry.bestbytes.net/kraken:$(TAG)"
+	docker build -q -t foomo/kraken:$(TAG) . > .image_id
+	docker tag `cat .image_id` foomo/kraken:latest
+	echo "# tagged container `cat .image_id` as foomo/kraken:$(TAG)"
 	rm -f .image_id
 test:
 	go test ./...
