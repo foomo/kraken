@@ -68,5 +68,5 @@ docker
 ----
 
 ```bash
-docker run --rm -it -v $PWD/example-config.yaml:/etc/kraken/config.yaml -p="8765:80" docker-registry.bestbytes.net/kraken:latest
+docker run --rm -it -v $PWD/example-config.yaml:/etc/kraken/config.yaml -p="8765:80" foomo/kraken:latest
 ```

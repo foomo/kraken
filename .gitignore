@@ -1,5 +1,3 @@
 .*
 !.git*
 bin/*
-
-docker/files/cacert.pem
