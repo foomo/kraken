@@ -8,7 +8,7 @@ COPY bin/kraken-linux-amd64 /usr/sbin/kraken
 #ADD https://curl.haxx.se/ca/cacert.pem /etc/ssl/certs/ca-certificates.crt
 COPY docker/files/cacert.pem /etc/ssl/certs/ca-certificates.crt
 
-EXPOSE 8888
+EXPOSE 80
 
 VOLUME /etc/kraken/config.yaml
 
